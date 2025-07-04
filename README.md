@@ -162,3 +162,9 @@ a.c:(.text+0x38): undefined reference to `_yar_append'
 You do not have `YAR_IMPLEMENTATION` defined in your project at all. Define it
 before including yar.h in one of your C files, or alternatively build with
 yar.c from this repo.
+
+## Inspiration
+
+Thanks to Tsoding's [nob.h](https://github.com/tsoding/nob.h)'s `da_append`
+macro, and to Jai's `array_add :: (array: *[..] $T) -> *T` function for the
+inspiration.
