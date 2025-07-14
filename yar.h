@@ -21,6 +21,10 @@
  *
  * yar_append_cstr(array, data) - Append a C string (nul-terminated char array)
  *
+ * yar_insert(array, index, num) - Insert items somewhere within the array. Moves items to higher indexes as required.
+ *
+ * yar_remove(array, index, num) - Remove items from somewhere within the array. Moves items to lower indexes as required.
+ *
  * yar_reset(array) - Reset the count of elements to 0, to re-use the memory. Does not free the memory.
  *
  * yar_free(array) - Free item memory, and set the items, count, and capacity to 0.
@@ -33,6 +37,8 @@
                                           &(array)->items[(array)->count]))
 #define yar_append_many(array, data, num)   ((_yar_append_many((void**)&(array)->items, &(array)->count, &(array)->capacity, sizeof((array)->items[0]), 1 ? (data) : ((array)->items), (num)) ))
 #define yar_append_cstr(array, data)        yar_append_many(array, data, strlen(data))
+#define yar_insert(array, index, num)       ((_yar_insert((void**)&(array)->items, &(array)->count, &(array)->capacity, sizeof((array)->items[0]), index, num) ))
+#define yar_remove(array, index, num)       ((_yar_remove((void**)&(array)->items, &(array)->count, sizeof((array)->items[0]), index, num) ))
 #define yar_reset(array)    (((array)->count = 0))
 #define yar_free(array)     ((_yar_free((array)->items)), (array)->items = NULL, (array)->count = 0, (array)->capacity = 0)
 
@@ -40,6 +46,8 @@
 void* _yar_append(void** items_pointer, size_t* count, size_t* capacity, size_t item_size);
 void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, void* data, size_t extra);
 void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra);
+void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t index, size_t extra);
+void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove);
 void* _yar_realloc(void* p, size_t new_size);
 void _yar_free(void* p);
 
@@ -77,9 +85,9 @@ void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, si
 
 void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra)
 {
-    void* items = *items_pointer;
+    char* items = *items_pointer;
     size_t newcount = *count + extra;
-    if(newcount > *capacity) {
+    if (newcount > *capacity) {
         size_t newcap = (*capacity < YAR_MIN_CAP) ? YAR_MIN_CAP : *capacity * 16 / 10;
         if (newcap < newcount) newcap = newcount;
         void* next = _yar_realloc(items, newcap * item_size);
@@ -88,11 +96,40 @@ void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t
         *items_pointer = next;
         *capacity = newcap;
     }
-    void* result = (char*)items + (*count * item_size);
-    memset(result, 0, item_size * extra);
+    void* result = items + (*count * item_size);
+    if (extra && result) memset(result, 0, item_size * extra);
     return result;
 }
 
+void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t index, size_t extra)
+{
+    void* next = _yar_reserve(items_pointer, count, capacity, item_size, extra);
+    if(next == NULL) return NULL;
+
+    char* items = *items_pointer;
+    if (index < *count)
+    {
+        memmove(&items[item_size * (index + extra)], &items[item_size * index], (*count - index) * item_size);
+        memset(&items[item_size * index], 0, extra * item_size);
+    }
+    *count += extra;
+    return items + index * item_size;
+}
+
+void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove)
+{
+    if(remove >= *count) {
+        *count = 0;
+        return *items_pointer;
+    }
+    if (index >= *count) {
+        return *items_pointer;
+    }
+    char* items = *items_pointer;
+    memmove(&items[item_size * index], &items[item_size * (index + remove)], item_size * (*count - (index + remove)));
+    *count -= remove;
+    return items + item_size * index;
+}
 
 void* _yar_realloc(void* p, size_t new_size)
 {

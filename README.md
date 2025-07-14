@@ -3,7 +3,7 @@
 Typesafe, single-implementation, zero-copy dynamic arrays in C without crazy
 macros.
 
-Suitable as a single-header library, just copy `yar.h` into your project and
+Suitable as a single-header library, just copy [yar.h](yar.h) into your project and
 use it. `#define YAR_IMPLEMENTATION` in one C file of the project before
 including the header.
 
@@ -36,7 +36,7 @@ to you as a pointer of the correct type. `yar_free` to free the memory.
 You can read all functions defined in [yar.h](yar.h) - it is simple and small.
 See the [examples directory](examples) for more usage and motivation.
 
-## User-define struct
+### User-define struct
 
 Yar can use user-defined structures. They just need `items`, `count`, and `capacity` fields.
 
@@ -78,7 +78,7 @@ int main()
 }
 ```
 
-## yar(type) macro struct
+### yar(type) macro struct
 
 `yar(type)` defines a struct with the 3 required fields. It is convenient if
 you just need the dynamic array and no other fields in the struct.
@@ -103,7 +103,7 @@ int main()
 }
 ```
 
-## Works as you would expect
+### Works as you would expect
 
 It can be used inside other structs, have dynamic arrays of structures, the
 sub-types can contain spaces...
@@ -138,6 +138,26 @@ int main()
     yar_free(&people);
 }
 ```
+
+## Build and Test
+
+Usually you won't need to build this library, you just copy and paste
+[yar.h](yar.h) into your project and use it. However, there is a build system
+available to build the library, examples, and tests, using CMake:
+
+```sh
+mkdir build
+cd build
+cmake ..
+cmake --build .
+ctest
+```
+
+The CMake also exports two libraries, in case you prefer to copy the whole repo
+in or submodule it:
+- `yar` - Interface library which simply has the include path setup.
+- `yar_impl` - Object library which contains the implementation, and adds an
+  include path.
 
 ## Notes and Troubleshooting
 

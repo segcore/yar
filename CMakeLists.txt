@@ -6,3 +6,8 @@ add_library(yar_impl OBJECT yar.c) # To also get implementation
 target_include_directories(yar INTERFACE ".")
 target_include_directories(yar_impl PUBLIC ".")
 add_subdirectory(examples)
+
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory(test)
+endif()
