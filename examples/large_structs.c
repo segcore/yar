@@ -21,6 +21,7 @@ int main()
     mesh->count = 5000; // ... pretend this is more realistic
     for (int i = 0; i < mesh->count; i++) {
         mesh->vertexs[i] = 10 * i/100.0f;
+        mesh->colours[i] = 0x181818FFu;
     }
 
     // Reserve if it 'might' be used, and increment count if it is.
@@ -46,7 +47,8 @@ static bool parse_mesh(LargeStruct* mesh)
         return false;
     }
     // ...
-    mesh->count = fread(mesh->vertexs, 12000, sizeof(float), f);
+    mesh->count = fread(mesh->vertexs, sizeof(float), 12000, f);
+    fclose(f);
     return true;
 }
 

@@ -10,6 +10,21 @@
 #include <stddef.h> // size_t
 #include <string.h> // strlen
 
+/*
+ * yar(type) - Declare a new basic dynamic array
+ *
+ * yar_append(array) - Add a new item at the end of the array, and return a pointer to it
+ *
+ * yar_reserve(array, extra) - Reserve space for `extra` count of items
+ *
+ * yar_append_many(array, data, num) - Append a copy of existing data
+ *
+ * yar_append_cstr(array, data) - Append a C string (nul-terminated char array)
+ *
+ * yar_reset(array) - Reset the count of elements to 0, to re-use the memory. Does not free the memory.
+ *
+ * yar_free(array) - Free item memory, and set the items, count, and capacity to 0.
+ */
 
 #define yar(type)   struct { type *items; size_t count; size_t capacity; }
 #define yar_append(array)   ((_yar_append((void**)&(array)->items, &(array)->count, &(array)->capacity, sizeof((array)->items[0])), \
@@ -27,29 +42,6 @@ void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, si
 void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra);
 void* _yar_realloc(void* p, size_t new_size);
 void _yar_free(void* p);
-
-/*
- * yar(type)
- * - Declare a new basic dynamic array
- *
- * yar_append(array)
- * - Add a new item at the end of the array, and return a pointer to it
- *
- * yar_reserve(array, extra)
- * - Reserve space for `extra` count of items
- *
- * yar_append_many(array, data, num)
- * - Append a copy of existing data
- *
- * yar_append_cstr(array, data)
- * - Append a C string (nul-terminated char array)
- *
- * yar_reset(array)
- * - Reset the count of elements to 0, to re-use the memory. Does not free the memory.
- *
- * yar_free(array)
- * - Free item memory, and set the items, count, and capacity to 0.
- */
 
 #if defined(YAR_IMPLEMENTATION)
 

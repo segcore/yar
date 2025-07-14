@@ -7,21 +7,34 @@ Suitable as a single-header library, just copy `yar.h` into your project and
 use it. `#define YAR_IMPLEMENTATION` in one C file of the project before
 including the header.
 
-Single-implementation means that there is one definition of the implementation
-functions, and all calls delegate to those functions. This reduces the
-'copy/paste' effect of using a pure-macro approach, which would duplicate the
-allocation logic at every call site. It also means that the implementation can
-use a more specialised allocation function, and avoid different allocation/free
-implementation issues in different C files (freeing with a different allocation
-scheme in another file, or in particular on Windows DLLs where the DLL
-allocating the memory must be the same one to free it).
+## Single-implementation
+
+Each function has one implementation which *all types* delegate to. Using
+`yar(double)`, `yar(int)`, and `yar(SomeStruct)` and custom types all delegate
+to the same small function implementation. This reduces code bloat, and can
+help keep code in CPU cache longer. If all dynamic array operations call the
+same function regardless of type, only that entry need be in cache. This
+constrasts with a per-type specialisation (e.g. C macros, C separate functions
+per type, C++ std::vector, and many other language generic/template
+implementations), where each instantiation is a 'copy/paste' with different
+types. `std::vector<double>::push_back()` will kick
+`std::vector<int>::push_back()` out of cache with a near-identical copy of the
+same code. A traditional C macro method is similar, but duplicates at each call
+site.
+
+Single implementation also allows a more specialised allocation function, and
+avoids having different-allocation/free implementation issues across C files
+(freeing with a different allocation scheme in another file, or in particular
+in Windows DLLs where the DLL allocating the memory must be the same one to
+free it).
 
 ## Usage
 
 `yar_append` adds a new element to the end of the dynamic array, and returns it
-to you as a pointer of the correct type.
+to you as a pointer of the correct type. `yar_free` to free the memory.
 
-See also the [examples directory](examples).
+You can read all functions defined in [yar.h](yar.h) - it is simple and small.
+See the [examples directory](examples) for more usage and motivation.
 
 ## User-define struct
 
@@ -92,7 +105,8 @@ int main()
 
 ## Works as you would expect
 
-It can be used inside other structs, have dynamic arrays of structures, ...
+It can be used inside other structs, have dynamic arrays of structures, the
+sub-types can contain spaces...
 
 ```c
 #define YAR_IMPLEMENTATION
@@ -125,22 +139,7 @@ int main()
 }
 ```
 
-## Other notes
-
-### Avoiding YAR_IMPLEMENTATION
-
-Instead of
-```c
-#define YAR_IMPLEMENTATION
-#include "yar.h"
-```
-
-You can instead just do:
-```c
-#include "yar.c"
-```
-
-Alternatively, you can build with yar.c from this repo.
+## Notes and Troubleshooting
 
 ### Multiple definition errors
 
@@ -162,6 +161,75 @@ a.c:(.text+0x38): undefined reference to `_yar_append'
 You do not have `YAR_IMPLEMENTATION` defined in your project at all. Define it
 before including yar.h in one of your C files, or alternatively build with
 yar.c from this repo.
+
+### yar(x) != yar(x)
+
+I am yar(x). You are yar(x). We are not the same.
+
+yar(type) is defined as `#define yar(type)   struct { type *items; size_t
+count; size_t capacity; }`. If you know C, you know this defines a new
+structure every time you 'run' the macro.
+
+Just as if you had `struct MyInt { int a; }` and `struct OtherInt { int a; }`
+-- these are different types, even though they are equivalent after
+compilation.
+
+This means you cannot use yar(x) inside function arguments, and some other
+situations where you need the same type as per C rules.
+
+```c
+// --- BAD. Declares a new type in the function declaration, 
+//     which is incompatible with all callers
+void do_something(yar(int) list) {}
+    // warning: anonymous struct declared inside parameter list will not be
+    // visible outside of this definition or declaration
+
+do_something(...);
+    // error: incompatible type for argument 1 of ‘do_something’
+
+// --- GOOD: Define a type and use that in relevant functions
+typedef yar(int) Algorithms;
+void do_something(Algorithms list) {}
+
+Algorithms x = {0};
+do_something(x);
+```
+
+This can be used to your advantage to provide stronger type-checking:
+
+```c
+typedef yar(int) Algorithms;
+typedef yar(int) ListIndexes;
+
+void check_algorithms(Algorithms algs);
+int main() {
+    Algorithms algs = {0};
+    ListIndexes indexes = {0};
+    // Whoops: wrong argument! But gets caught at compile-time
+    check_algorithms(indexes);
+    // error: incompatible type for argument 1 of ‘check_algorithms’
+    // check_algorithms(indexes);
+    //                  ^~~~~~~
+    //                  |
+    //                  ListIndexes
+    // note: expected ‘Algorithms’ but argument is of type ‘ListIndexes’
+}
+```
+
+### Avoiding YAR_IMPLEMENTATION
+
+Don't like YAR_IMPLEMENTATION? Instead of
+```c
+#define YAR_IMPLEMENTATION
+#include "yar.h"
+```
+
+You can instead just do:
+```c
+#include "yar.c"
+```
+
+Alternatively, you can build with yar.c from this repo.
 
 ## Inspiration
 

@@ -46,7 +46,6 @@ int main(int argc, char** argv)
                 sb.count += read_count;
                 buf = yar_reserve(&sb, bufsize);
             }
-            *yar_append(&sb) = '\0'; // nul terminate
             fclose(fp);
         }
     }
