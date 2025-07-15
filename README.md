@@ -139,6 +139,30 @@ int main()
 }
 ```
 
+### Doesn't leak!
+
+You can define structs in header files which are yar-compatible without those
+headers needing to include yar.h. It doesn't "leak" its implementation into the
+header, or require downstream applications to know what `yar.h` is.
+
+```c
+// things.h
+typedef struct { ... } Thing;
+typedef struct {
+    Thing* items;
+    size_t count;
+    size_t capacity;
+} ThingList;
+void x(ThingList* things);
+
+// things.c
+#include "things.h"
+#include "yar.h"
+void x(ThingList* things) {
+    *yar_append(things) = ...;
+}
+```
+
 ## Build and Test
 
 Usually you won't need to build this library, you just copy and paste
