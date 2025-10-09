@@ -1,8 +1,8 @@
-/*
- * yar - dynamic arrays in C.
+/* yar - dynamic arrays in C - public domain Nicholas Rixson 2025
  *
- * Copyright (c) 2025 Nicholas Rixson
- * Released under the MIT Licence. https://github.com/segcore/yar
+ * https://github.com/segcore/yar
+ *
+ * Licence: see end of file
  */
 #ifndef YAR_H
 #define YAR_H
@@ -21,13 +21,13 @@
  *
  * yar_append_cstr(array, data) - Append a C string (nul-terminated char array)
  *
- * yar_insert(array, index, num) - Insert items somewhere within the array. Moves items to higher indexes as required.
+ * yar_insert(array, index, num) - Insert items somewhere within the array. Moves items to higher indexes as required. Returns &array[index]
  *
  * yar_remove(array, index, num) - Remove items from somewhere within the array. Moves items to lower indexes as required.
  *
  * yar_reset(array) - Reset the count of elements to 0, to re-use the memory. Does not free the memory.
  *
- * yar_free(array) - Free item memory, and set the items, count, and capacity to 0.
+ * yar_free(array) - Free items memory, and set the items, count, and capacity to 0.
  */
 
 #define yar(type)   struct { type *items; size_t count; size_t capacity; }
@@ -42,14 +42,20 @@
 #define yar_reset(array)    (((array)->count = 0))
 #define yar_free(array)     ((_yar_free((array)->items)), (array)->items = NULL, (array)->count = 0, (array)->capacity = 0)
 
+#ifndef YARAPI
+    #define YARAPI // nothing; overridable if needed.
+#endif
+
 // Implementation functions
-void* _yar_append(void** items_pointer, size_t* count, size_t* capacity, size_t item_size);
-void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, void* data, size_t extra);
-void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra);
-void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t index, size_t extra);
-void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove);
-void* _yar_realloc(void* p, size_t new_size);
-void _yar_free(void* p);
+YARAPI void* _yar_append(void** items_pointer, size_t* count, size_t* capacity, size_t item_size);
+YARAPI void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, void* data, size_t extra);
+YARAPI void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra);
+YARAPI void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t index, size_t extra);
+YARAPI void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove);
+YARAPI void* _yar_realloc(void* p, size_t new_size);
+YARAPI void _yar_free(void* p);
+
+#endif // YAR_H
 
 #if defined(YAR_IMPLEMENTATION)
 
@@ -65,15 +71,15 @@ void _yar_free(void* p);
   #define YAR_FREE free
 #endif
 
-#include <string.h>
-void* _yar_append(void** items_pointer, size_t* count, size_t* capacity, size_t item_size)
+#include <string.h> // mem* functions
+YARAPI void* _yar_append(void** items_pointer, size_t* count, size_t* capacity, size_t item_size)
 {
     void* result = _yar_reserve(items_pointer, count, capacity, item_size, 1);
     if (result != NULL) *count += 1;
     return result;
 }
 
-void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, void* data, size_t extra)
+YARAPI void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, void* data, size_t extra)
 {
     void* result = _yar_reserve(items_pointer, count, capacity, item_size, extra);
     if (result != NULL) {
@@ -83,12 +89,12 @@ void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, si
     return result;
 }
 
-void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra)
+YARAPI void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t extra)
 {
     char* items = *items_pointer;
     size_t newcount = *count + extra;
     if (newcount > *capacity) {
-        size_t newcap = (*capacity < YAR_MIN_CAP) ? YAR_MIN_CAP : *capacity * 16 / 10;
+        size_t newcap = (*capacity < YAR_MIN_CAP) ? YAR_MIN_CAP : *capacity * 8 / 5;
         if (newcap < newcount) newcap = newcount;
         void* next = _yar_realloc(items, newcap * item_size);
         if (next == NULL) return NULL;
@@ -101,7 +107,7 @@ void* _yar_reserve(void** items_pointer, size_t* count, size_t* capacity, size_t
     return result;
 }
 
-void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t index, size_t extra)
+YARAPI void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, size_t index, size_t extra)
 {
     void* next = _yar_reserve(items_pointer, count, capacity, item_size, extra);
     if(next == NULL) return NULL;
@@ -116,7 +122,7 @@ void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, size_t 
     return items + index * item_size;
 }
 
-void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove)
+YARAPI void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove)
 {
     if(remove >= *count) {
         *count = 0;
@@ -131,18 +137,64 @@ void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t 
     return items + item_size * index;
 }
 
-void* _yar_realloc(void* p, size_t new_size)
+YARAPI void* _yar_realloc(void* p, size_t new_size)
 {
     // Declaration, so we can call it if the definition is overridden
     extern void* YAR_REALLOC(void *ptr, size_t size);
     return YAR_REALLOC(p, new_size);
 }
 
-void _yar_free(void* p)
+YARAPI void _yar_free(void* p)
 {
     extern void YAR_FREE(void *ptr);
     YAR_FREE(p);
 }
 
 #endif // YAR_IMPLEMENTATION
-#endif // YAR_H
+/*
+------------------------------------------------------------------------------
+This software is available under 2 licenses -- choose whichever you prefer.
+------------------------------------------------------------------------------
+ALTERNATIVE A - MIT License
+
+Copyright (c) 2025 Nicholas Rixson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+------------------------------------------------------------------------------
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+This is free and unencumbered software released into the public domain.
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to
+the detriment of our heirs and successors. We intend this dedication to be an
+overt act of relinquishment in perpetuity of all present and future rights to
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+------------------------------------------------------------------------------
+*/
