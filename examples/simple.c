@@ -50,7 +50,7 @@ void inside_structs()
         yar(const char*) aliases;
     } Person;
 
-    Person your = {};
+    Person your = {0};
     your.name = "Timothy";
     your.age = 23;
     *yar_append(&your.aliases) = "Captain Lobsterlegs";
@@ -73,7 +73,7 @@ void of_structs()
         const char* message;
     } Message;
 
-    yar(Message) messages;
+    yar(Message) messages = {0};
 
     Message* m = yar_append(&messages);
     m->x = 100; m->y = 200; m->message = "Accepted connection";

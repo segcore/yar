@@ -13,7 +13,7 @@ static bool parse_mesh(LargeStruct* mesh);
 
 int main()
 {
-    yar(LargeStruct) meshes;
+    yar(LargeStruct) meshes = {0};
 
     // Allocate a large struct directly on the heap, to fill it in
     LargeStruct* mesh = yar_append(&meshes);
