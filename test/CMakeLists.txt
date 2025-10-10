@@ -15,3 +15,11 @@ add_executable(asserts asserts.c)
 target_link_libraries(asserts PRIVATE yar)
 add_test(NAME asserts COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:asserts>)
 set_property(TEST asserts PROPERTY WILL_FAIL TRUE)
+
+# Can be disable if C++ compiler is not available
+option(TEST_YAR_CPP "Build the C++ tests for Yar" ON)
+if (TEST_YAR_CPP)
+    enable_language(CXX)
+    test(zz_c++ zz_c++.cpp)
+    target_link_libraries(zz_c++ PRIVATE yar_impl)
+endif()

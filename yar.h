@@ -3,6 +3,24 @@
  * https://github.com/segcore/yar
  *
  * Licence: see end of file
+
+ Sample usage:
+    #define YAR_IMPLEMENTATION
+    #include "yar.h"
+
+    int main() {
+        // struct { double *items; size_t count; size_t capacity; } numbers = {0};
+        yar(double) numbers = {0};
+        *yar_append(&numbers) = 3.14159;
+        *yar_append(&numbers) = 2.71828;
+        *yar_append(&numbers) = 1.61803;
+
+        for(size_t i = 0; i < numbers.count; i++) {
+            printf("%f\n", numbers.items[i]);
+        }
+
+        yar_free(&numbers);
+    }
  */
 #ifndef YAR_H
 #define YAR_H
@@ -49,6 +67,10 @@
     #define YARAPI // nothing; overridable if needed.
 #endif
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 // Implementation functions
 YARAPI void* _yar_append(void** items_pointer, size_t* count, size_t* capacity, size_t item_size);
 YARAPI void* _yar_append_many(void** items_pointer, size_t* count, size_t* capacity, size_t item_size, void* data, size_t extra);
@@ -57,6 +79,10 @@ YARAPI void* _yar_insert(void** items_pointer, size_t* count, size_t* capacity, 
 YARAPI void* _yar_remove(void** items_pointer, size_t* count, size_t item_size, size_t index, size_t remove);
 YARAPI void* _yar_realloc(void* p, size_t new_size);
 YARAPI void _yar_free(void* p);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif // YAR_H
 
