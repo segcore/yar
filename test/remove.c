@@ -74,4 +74,15 @@ int main()
     assert(things.items != NULL);
 
     yar_free(&things);
+
+    // Just a yar_init test at the end here...
+    yar(int) garbage;
+    memset(&garbage, 0xCD, sizeof(garbage));
+    assert(garbage.items != NULL);
+    assert(garbage.count != 0);
+    assert(garbage.capacity != 0);
+    yar_init(&garbage);
+    assert(garbage.items == NULL);
+    assert(garbage.count == 0);
+    assert(garbage.capacity == 0);
 }

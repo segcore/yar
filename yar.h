@@ -27,6 +27,8 @@
  *
  * yar_reset(array) - Reset the count of elements to 0, to re-use the memory. Does not free the memory.
  *
+ * yar_init(array) - Set items, count, and capacity to 0. Can usually be avoided with <declaration> = {0};
+ *
  * yar_free(array) - Free items memory, and set the items, count, and capacity to 0.
  */
 
@@ -40,6 +42,7 @@
 #define yar_insert(array, index, num)       ((_yar_insert((void**)&(array)->items, &(array)->count, &(array)->capacity, sizeof((array)->items[0]), index, num) ))
 #define yar_remove(array, index, num)       ((_yar_remove((void**)&(array)->items, &(array)->count, sizeof((array)->items[0]), index, num) ))
 #define yar_reset(array)    (((array)->count = 0))
+#define yar_init(array)     ((array)->items = NULL, (array)->count = 0, (array)->capacity = 0)
 #define yar_free(array)     ((_yar_free((array)->items)), (array)->items = NULL, (array)->count = 0, (array)->capacity = 0)
 
 #ifndef YARAPI

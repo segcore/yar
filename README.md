@@ -11,14 +11,15 @@ including the header.
 
 Each function has one implementation which *all types* delegate to. Using
 `yar(double)`, `yar(int)`, and `yar(SomeStruct)` and custom types all delegate
-to the same small function implementation. This reduces code bloat, and can
-help keep code in CPU cache longer. If all dynamic array operations call the
-same function regardless of type, only that entry need be in cache. This
-constrasts with a per-type specialisation (e.g. C macros, C separate functions
+to the same small function implementation. This reduces code bloat and reduces
+the amount of code that needs to be loaded and kept in CPU cache. If all
+dynamic array operations call the same function regardless of type, only that
+entry need be in cache.
+This constrasts with a per-type specialisation (e.g. C macros, C separate functions
 per type, C++ std::vector, and many other language generic/template
 implementations), where each instantiation is a 'copy/paste' with different
-types. `std::vector<double>::push_back()` will kick
-`std::vector<int>::push_back()` out of cache with a near-identical copy of the
+types. `std::vector<double>::push_back()` will share nothing with
+`std::vector<int>::push_back()` and repeat a near-identical copy of the
 same code. A traditional C macro method is similar, but duplicates at each call
 site.
 
@@ -30,21 +31,75 @@ free it).
 
 ## Usage
 
-`yar_append` adds a new element to the end of the dynamic array, and returns it
-to you as a pointer of the correct type. `yar_free` to free the memory.
+Define a structure containing at least the 3 values:
+```c
+struct { your_type *items; size_t count; size_t capacity; }
+```
 
-You can read all functions defined in [yar.h](yar.h) - it is simple and small.
-See the [examples directory](examples) for more usage and motivation.
+Then all yar_* functions can use it as a dynamic array.
+
+```c
+#define YAR_IMPLEMENTATION
+#include "yar.h"
+
+int main() {
+    // struct { double *items; size_t count; size_t capacity; } numbers = {0};
+    yar(double) numbers = {0};
+    *yar_append(&numbers) = 3.14159;
+    *yar_append(&numbers) = 2.71828;
+    *yar_append(&numbers) = 1.61803;
+
+    for(size_t i = 0; i < numbers.count; i++) {
+        printf("%f\n", numbers.items[i]);
+    }
+
+    yar_free(&numbers);
+}
+
+// This uses a simple optional macro defined in yar.h as follows.
+#define yar(type)   struct { type *items; size_t count; size_t capacity; }
+```
+
+Function overview:
+
+* `   yar(type)` - Optional: a quick way to create a struct just used as a dynamic array.
+* `T* yar_append(array)` - Append an element, and return it as a pointer of the correct type.
+* `T* yar_reserve(array, extra_space)` - Reserve extra_space new elements, returning a pointer to the beginning of that space.
+* `T* yar_append_many(array, data, num)` - Append a copy of existing array elements.
+* `T* yar_append_cstr(array, data)` - Append a C string (nul-terminated char array)
+* `T* yar_insert(array, index, num)` - Insert items somewhere within the array.
+  Moves items to higher indexes as required. Returns &array[index] for you to populate with values.
+* `T* yar_remove(array, index, num)` - Remove items from somewhere within the array.
+* `   yar_reset(array)` - Reset the count of elements to 0, to re-use the memory. Does not free the memory.
+* `   yar_free(array)` - Free items memory, and set the items, count, and capacity to 0.
+
+For more details read [yar.h](yar.h) - it is simple and small.
+See also the [examples](examples).
+
+### Zero Initialise
+
+When creating dynamic arrays, it is often convenient to zero-initialize them at
+the definition site. This allows them to be used straight away with no other
+initialisation function necessary.
+
+```c
+yar(int) x; // Bad
+yar(int) y = {0}; // Good
+
+yar(int) *z = malloc(sizeof(*z));
+memset(z, 0, sizeof(*z)); // OK, just inconvenient
+yar_init(z); // Alternative, just for items/count/capacity zero-ing.
+```
+
+By default, new values of the array will be memset to 0. So `yar_append(&x)` is
+sufficient to append a sentinal nil-value. Though you may get compiler warnings
+for not using the return value on some compilers.
 
 ### User-define struct
 
 Yar can use user-defined structures. They just need `items`, `count`, and `capacity` fields.
 
 ```c
-#define YAR_IMPLEMENTATION
-#include "yar.h"
-#include <stdio.h>
-
 typedef struct {
     float whatever_other_fields_you_have;
 
@@ -59,87 +114,38 @@ typedef struct {
 int main()
 {
     FavouriteNumbers numbers = {0};
-
     *yar_append(&numbers) = 3.14159;
-    *yar_append(&numbers) = 2.71828;
-    *yar_append(&numbers) = 1.61803;
-
-    double* number = yar_append(&numbers);
-    *number = 1234;
-
-    // Type error: error: incompatible types when assigning to type ‘double’ from type ‘char *’
-    // *yar_append(&numbers) = "hello";
-
-    // Will print all 4 values
-    for(size_t i = 0; i < numbers.count; i++) {
-        printf("%f\n", numbers.items[i]);
-    }
-    yar_free(&numbers);
+    // ...
 }
 ```
 
-### yar(type) macro struct
+### Type checked
 
-`yar(type)` defines a struct with the 3 required fields. It is convenient if
-you just need the dynamic array and no other fields in the struct.
+Incompatible types can be caught in many cases.
 
 ```c
-#define YAR_IMPLEMENTATION
-#include "yar.h"
-#include <stdio.h>
+yar(double) numbers = {0};
 
-int main()
-{
-    yar(double) numbers = {0};
-
-    *yar_append(&numbers) = 3.14159;
-    *yar_append(&numbers) = 2.71828;
-    *yar_append(&numbers) = 1.61803;
-
-    for(size_t i = 0; i < numbers.count; i++) {
-        printf("%f\n", numbers.items[i]);
-    }
-    yar_free(&numbers);
-}
+// ERROR: incompatible types when assigning to type ‘double’ from type ‘char *’
+*yar_append(&numbers) = "hello";
 ```
 
-### Works as you would expect
+### Can be used almost anywhere
 
 It can be used inside other structs, have dynamic arrays of structures, the
 sub-types can contain spaces...
 
 ```c
-#define YAR_IMPLEMENTATION
-#include "yar.h"
-#include <stdio.h>
+typedef struct {
+    const char* name;
+    int age;
+    yar(const char*) aliases;
+} Person;
 
-int main()
-{
-    typedef struct {
-        const char* name;
-        int age;
-        yar(const char*) aliases;
-    } Person;
-
-    yar(Person) people;
-
-    Person* your = yar_append(&people);
-    your->name = "Timothy";
-    your->age = 23;
-    *yar_append(&your->aliases) = "Captain Lobsterlegs";
-    *yar_append(&your->aliases) = "Avocado Toast Man";
-    *yar_append(&your->aliases) = "The T-Bone";
-
-    printf("Hello %s, or should I call you:\n", your->name);
-    for(size_t i = 0; i < your->aliases.count; i++) {
-        printf("   %s\n", your->aliases.items[i]);
-    }
-    yar_free(&your->aliases);
-    yar_free(&people);
-}
+yar(Person) people;
 ```
 
-### Doesn't leak!
+### Doesn't leak the abstraction
 
 You can define structs in header files which are yar-compatible without those
 headers needing to include yar.h. It doesn't "leak" its implementation into the
@@ -177,8 +183,8 @@ cmake --build .
 ctest
 ```
 
-The CMake also exports two libraries, in case you prefer to copy the whole repo
-in or submodule it:
+The CMake definition also exports two libraries, if you want to use it through
+CMake directly.
 - `yar` - Interface library which simply has the include path setup.
 - `yar_impl` - Object library which contains the implementation, and adds an
   include path.
@@ -212,7 +218,7 @@ I am yar(x). You are yar(x). We are not the same.
 
 yar(type) is defined as `#define yar(type)   struct { type *items; size_t
 count; size_t capacity; }`. If you know C, you know this defines a new
-structure every time you 'run' the macro.
+structure every time you expand the macro.
 
 Just as if you had `struct MyInt { int a; }` and `struct OtherInt { int a; }`
 -- these are different types, even though they are equivalent after
@@ -280,3 +286,7 @@ Alternatively, you can build with yar.c from this repo.
 Thanks to Tsoding's [nob.h](https://github.com/tsoding/nob.h)'s `da_append`
 macro, and to Jai's `array_add :: (array: *[..] $T) -> *T` function for the
 inspiration.
+
+## Licence
+
+Available under Public Domain and MIT Licence at your choosing.
