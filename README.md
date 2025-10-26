@@ -1,7 +1,7 @@
 # yar
 
-Typesafe, single-implementation, zero-copy dynamic arrays in C without crazy
-macros.
+Convenient, typesafe, single-implementation, zero-copy dynamic arrays in C
+without crazy macros.
 
 Suitable as a single-header library, just copy [yar.h](yar.h) into your project and
 use it. `#define YAR_IMPLEMENTATION` in one C file of the project before
@@ -10,24 +10,23 @@ including the header.
 ## Single-implementation
 
 Each function has one implementation which *all types* delegate to. Using
-`yar(double)`, `yar(int)`, and `yar(SomeStruct)` and custom types all delegate
-to the same small function implementation. This reduces code bloat and reduces
-the amount of code that needs to be loaded and kept in CPU cache. If all
+`yar(double)`, `yar(int)`, `yar(SomeStruct)`, etc. all delegate
+to the same small function implementation. This reduces code bloat, and
+the amount of code that needs to be loaded and kept in the cache. If all
 dynamic array operations call the same function regardless of type, only that
 entry need be in cache.
-This constrasts with a per-type specialisation (e.g. C macros, C separate functions
-per type, C++ std::vector, and many other language generic/template
-implementations), where each instantiation is a 'copy/paste' with different
-types. `std::vector<double>::push_back()` will share nothing with
-`std::vector<int>::push_back()` and repeat a near-identical copy of the
+This type-erasure feature constrasts with a per-type specialisation (e.g. C
+macros, C separate functions per type, C++ std::vector, and many other language
+generic/template implementations), where each instantiation is a 'copy/paste'
+with different types. `std::vector<double>::push_back()` will share nothing
+with `std::vector<int>::push_back()` and repeat a near-identical copy of the
 same code. A traditional C macro method is similar, but duplicates at each call
 site.
 
 Single implementation also allows a more specialised allocation function, and
 avoids having different-allocation/free implementation issues across C files
-(freeing with a different allocation scheme in another file, or in particular
-in Windows DLLs where the DLL allocating the memory must be the same one to
-free it).
+(freeing with a different allocation scheme in another file, or in Windows DLLs
+where the DLL allocating the memory must be the one to free it).
 
 ## Usage
 
@@ -43,7 +42,7 @@ Then all yar_* functions can use it as a dynamic array.
 #include "yar.h"
 
 int main() {
-    // struct { double *items; size_t count; size_t capacity; } numbers = {0};
+    // Or: struct { double *items; size_t count; size_t capacity; } numbers = {0};
     yar(double) numbers = {0};
     *yar_append(&numbers) = 3.14159;
     *yar_append(&numbers) = 2.71828;
@@ -56,13 +55,13 @@ int main() {
     yar_free(&numbers);
 }
 
-// This uses a simple optional macro defined in yar.h as follows.
+// This uses an optional macro defined in yar.h as follows.
 #define yar(type)   struct { type *items; size_t count; size_t capacity; }
 ```
 
 Function overview:
 
-* `   yar(type)` - Optional: a quick way to create a struct just used as a dynamic array.
+* `   yar(type)` - Optional: a quick way to create a struct which is a dynamic array of `type`.
 * `T* yar_append(array)` - Append an element, and return it as a pointer of the correct type.
 * `T* yar_reserve(array, extra_space)` - Reserve extra_space new elements, returning a pointer to the beginning of that space.
 * `T* yar_append_many(array, data, num)` - Append a copy of existing array elements.
@@ -191,18 +190,19 @@ CMake directly.
 
 ## Notes and Troubleshooting
 
-### Multiple definition errors
+### Multiple definition of _yar_xxx
 
 ```
 a.c:(.text+0x0): multiple definition of `_yar_append'; /tmp/cc4PALri.o:yar.c:(.text+0x0): first defined here
 ```
 
-Multiple definitions of functions like _yar_append indicate that you have `YAR_IMPLEMENTATION`
-in more than one file of the project. It must be only defined in one file.
+Multiple definitions of functions like _yar_append or other _yar functions
+indicate that you have `YAR_IMPLEMENTATION` in more than one file of the
+project. It must be only defined in one file.
 
 Alternatively, define it in none of your files and include yar.c from this repo.
 
-### Undefined reference to _yar_append or similar functions
+### Undefined reference to _yar_xxx
 
 ```
 a.c:(.text+0x38): undefined reference to `_yar_append'
